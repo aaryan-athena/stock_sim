@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "../components/Navbar";
+import AuthModal from "../components/AuthModal";
 import ExternalFactors from "../components/ExternalFactors";
 import StockCard from "../components/StockCard";
 import StockChart from "../components/StockChart";
@@ -8,6 +10,7 @@ import FundamentalsPanel from "../components/FundamentalsPanel";
 import Portfolio from "../components/Portfolio";
 import SectorHeatmap from "../components/SectorHeatmap";
 import { useStocks } from "../hooks/useStocks";
+import { useAuth } from "../context/AuthContext";
 import { scenarios } from "../data/externalFactors";
 import { runSimulation } from "../engine/simulator";
 
@@ -28,13 +31,17 @@ function getSectorInsight(stock) {
 }
 
 export default function Simulator() {
-  const { stocks, loading } = useStocks();
+  const { user, loading: authLoading } = useAuth();
+  const { stocks, loading: stocksLoading } = useStocks();
   const [factors, setFactors] = useState({
     ...scenarios.find((s) => s.id === "neutral").factors,
   });
   const [results, setResults] = useState(null);
   const [selectedStock, setSelectedStock] = useState(null);
   const [activeTab, setActiveTab] = useState("chart");
+  const [authOpen, setAuthOpen] = useState(false);
+
+  const loading = authLoading || stocksLoading;
 
   const handleSimulate = useCallback(() => {
     const simResults = runSimulation(stocks, factors, 12);
@@ -66,7 +73,7 @@ export default function Simulator() {
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
           />
-          <span className="ml-3 text-gray-400">Loading stock data…</span>
+          <span className="ml-3 text-gray-400">Loading…</span>
         </div>
       </div>
     );
@@ -77,11 +84,57 @@ export default function Simulator() {
       <Navbar />
 
       <motion.div
-        className="flex flex-1 overflow-hidden"
+        className="flex flex-1 overflow-hidden relative"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
+        {/* ── Auth guard overlay ──────────────────────────────────────────── */}
+        <AnimatePresence>
+          {!user && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 24 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 24 }}
+                transition={{ type: "spring", stiffness: 280, damping: 24 }}
+                className="bg-gray-900 border border-gray-700 rounded-2xl p-10 max-w-md w-full text-center shadow-2xl"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600/30 to-blue-500/10 border border-blue-500/30 flex items-center justify-center mx-auto mb-5 text-3xl">
+                  🔒
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">
+                  Sign in to access the Simulator
+                </h2>
+                <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                  Your portfolio is saved to your account so you can track
+                  performance across sessions.
+                </p>
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setAuthOpen(true)}
+                  className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-900/30 mb-3"
+                >
+                  Sign In / Create Account
+                </motion.button>
+                <Link
+                  to="/"
+                  className="block text-sm text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  ← Back to Home
+                </Link>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
         {/* LEFT SIDEBAR */}
         <aside className="w-80 flex-shrink-0 flex flex-col border-r border-gray-800 overflow-hidden">
           {/* Run button — always visible */}
