@@ -81,96 +81,218 @@ export const factorDefinitions = [
   },
 ];
 
-// Pre-built scenario presets for quick simulation
+// Pre-built scenarios, written as scripted quarterly factor paths.
+//
+// Each scenario is a sequence of keyframes pinned to a quarter. The engine runs
+// against a value for every quarter, so `buildFactorPath` linearly interpolates
+// between consecutive keyframes — a macro story that develops over 3 years
+// rather than a single frozen set of slider positions.
 export const scenarios = [
   {
     id: "bull",
     name: "Bull Run",
     emoji: "📈",
-    description: "Strong GDP, FII inflows, good monsoon, pro-business policy",
-    factors: {
-      rbiRate: 5.5,
-      gdpGrowth: 8.5,
-      globalSentiment: 4,
-      fiiFlows: 35,
-      monsoon: 3,
-      govtPolicy: 3,
-      rupeeDollar: 82,
-    },
+    description: "Liquidity-led rally that builds, peaks, then cools as rates normalise",
+    keyframes: [
+      {
+        quarter: 1,
+        note: "Recovery takes hold — RBI starts easing, foreign money returns",
+        factors: { rbiRate: 6.25, gdpGrowth: 7.0, globalSentiment: 2, fiiFlows: 15, monsoon: 2, govtPolicy: 2, rupeeDollar: 84 },
+      },
+      {
+        quarter: 6,
+        note: "Peak euphoria — record FII inflows, strong monsoon, easy money",
+        factors: { rbiRate: 5.5, gdpGrowth: 8.5, globalSentiment: 4, fiiFlows: 45, monsoon: 3, govtPolicy: 3, rupeeDollar: 82 },
+      },
+      {
+        quarter: 12,
+        note: "Rally matures — RBI normalises rates, inflows moderate",
+        factors: { rbiRate: 6.25, gdpGrowth: 7.5, globalSentiment: 3, fiiFlows: 20, monsoon: 2, govtPolicy: 2, rupeeDollar: 83 },
+      },
+    ],
   },
   {
     id: "bear",
     name: "Bear Market",
     emoji: "📉",
-    description: "Global recession fears, FII outflows, tight monetary policy",
-    factors: {
-      rbiRate: 7.5,
-      gdpGrowth: 4.0,
-      globalSentiment: -4,
-      fiiFlows: -40,
-      monsoon: -1,
-      govtPolicy: -2,
-      rupeeDollar: 90,
-    },
+    description: "Global recession hits, capital flees, then a slow policy-led repair",
+    keyframes: [
+      {
+        quarter: 1,
+        note: "Cracks appear — global growth scare, FIIs start trimming",
+        factors: { rbiRate: 6.75, gdpGrowth: 6.0, globalSentiment: -1, fiiFlows: -10, monsoon: 1, govtPolicy: 0, rupeeDollar: 85 },
+      },
+      {
+        quarter: 5,
+        note: "Capitulation — heavy outflows, rupee at record lows, tight policy",
+        factors: { rbiRate: 7.75, gdpGrowth: 4.0, globalSentiment: -5, fiiFlows: -45, monsoon: -1, govtPolicy: -2, rupeeDollar: 91 },
+      },
+      {
+        quarter: 9,
+        note: "Bottoming — sentiment stops worsening, RBI pivots to support growth",
+        factors: { rbiRate: 6.75, gdpGrowth: 4.8, globalSentiment: -2, fiiFlows: -15, monsoon: 0, govtPolicy: 1, rupeeDollar: 89 },
+      },
+      {
+        quarter: 12,
+        note: "Repair — growth stabilises, cautious inflows resume",
+        factors: { rbiRate: 6.0, gdpGrowth: 6.0, globalSentiment: 0, fiiFlows: 5, monsoon: 1, govtPolicy: 2, rupeeDollar: 87 },
+      },
+    ],
   },
   {
     id: "itBoom",
     name: "IT Export Boom",
     emoji: "💻",
-    description: "Global tech spending surge, rupee depreciation, strong US economy",
-    factors: {
-      rbiRate: 6.0,
-      gdpGrowth: 7.0,
-      globalSentiment: 3,
-      fiiFlows: 15,
-      monsoon: 1,
-      govtPolicy: 1,
-      rupeeDollar: 89,
-    },
+    description: "Global tech capex supercycle with a steadily depreciating rupee",
+    keyframes: [
+      {
+        quarter: 1,
+        note: "Deal pipeline builds — early signs of a global tech upcycle",
+        factors: { rbiRate: 6.5, gdpGrowth: 6.8, globalSentiment: 1, fiiFlows: 5, monsoon: 1, govtPolicy: 1, rupeeDollar: 85 },
+      },
+      {
+        quarter: 7,
+        note: "Full boom — record order books, rupee slides, exporters re-rate",
+        factors: { rbiRate: 6.0, gdpGrowth: 7.5, globalSentiment: 4, fiiFlows: 25, monsoon: 1, govtPolicy: 2, rupeeDollar: 89 },
+      },
+      {
+        quarter: 12,
+        note: "Growth normalises — spending plateaus, rupee stays weak",
+        factors: { rbiRate: 6.0, gdpGrowth: 7.0, globalSentiment: 2, fiiFlows: 12, monsoon: 1, govtPolicy: 1, rupeeDollar: 90 },
+      },
+    ],
   },
   {
     id: "monsoonCrisis",
     name: "Monsoon Failure",
     emoji: "🌧️",
-    description: "Severe drought, food inflation spike, rural demand collapse",
-    factors: {
-      rbiRate: 7.0,
-      gdpGrowth: 5.5,
-      globalSentiment: 0,
-      fiiFlows: -10,
-      monsoon: -3,
-      govtPolicy: 0,
-      rupeeDollar: 86,
-    },
+    description: "Drought → food inflation → rate hikes → rural demand collapse, then recovery",
+    keyframes: [
+      {
+        quarter: 1,
+        note: "Normal conditions ahead of the season",
+        factors: { rbiRate: 6.5, gdpGrowth: 6.8, globalSentiment: 1, fiiFlows: 5, monsoon: 1, govtPolicy: 1, rupeeDollar: 84 },
+      },
+      {
+        quarter: 3,
+        note: "Monsoon fails — deficit rainfall across the key sowing belt",
+        factors: { rbiRate: 6.75, gdpGrowth: 6.0, globalSentiment: 0, fiiFlows: -5, monsoon: -3, govtPolicy: 0, rupeeDollar: 86 },
+      },
+      {
+        quarter: 6,
+        note: "Food inflation spikes — RBI hikes, rural demand collapses",
+        factors: { rbiRate: 7.5, gdpGrowth: 5.0, globalSentiment: -1, fiiFlows: -15, monsoon: -3, govtPolicy: 0, rupeeDollar: 87 },
+      },
+      {
+        quarter: 10,
+        note: "Good monsoon returns — reservoirs refill, food prices ease",
+        factors: { rbiRate: 6.75, gdpGrowth: 6.2, globalSentiment: 1, fiiFlows: 5, monsoon: 2, govtPolicy: 1, rupeeDollar: 85 },
+      },
+      {
+        quarter: 12,
+        note: "Rural demand recovers — rate cuts resume",
+        factors: { rbiRate: 6.25, gdpGrowth: 7.0, globalSentiment: 1, fiiFlows: 12, monsoon: 2, govtPolicy: 2, rupeeDollar: 84 },
+      },
+    ],
   },
   {
     id: "reform",
     name: "Policy Reform Wave",
     emoji: "🏛️",
-    description: "Major economic reforms, PLI expansion, tax simplification",
-    factors: {
-      rbiRate: 6.0,
-      gdpGrowth: 7.5,
-      globalSentiment: 2,
-      fiiFlows: 25,
-      monsoon: 1,
-      govtPolicy: 3,
-      rupeeDollar: 83,
-    },
+    description: "Reform announcements, disruptive implementation, then a durable growth uplift",
+    keyframes: [
+      {
+        quarter: 1,
+        note: "Reform agenda announced — PLI expansion, tax simplification",
+        factors: { rbiRate: 6.5, gdpGrowth: 6.8, globalSentiment: 1, fiiFlows: 10, monsoon: 1, govtPolicy: 3, rupeeDollar: 84 },
+      },
+      {
+        quarter: 4,
+        note: "Transition friction — implementation disrupts near-term growth",
+        factors: { rbiRate: 6.5, gdpGrowth: 6.0, globalSentiment: 1, fiiFlows: 5, monsoon: 1, govtPolicy: 2, rupeeDollar: 85 },
+      },
+      {
+        quarter: 8,
+        note: "Reforms bite — capex cycle turns, FIIs re-rate India",
+        factors: { rbiRate: 6.0, gdpGrowth: 7.5, globalSentiment: 3, fiiFlows: 30, monsoon: 1, govtPolicy: 3, rupeeDollar: 83 },
+      },
+      {
+        quarter: 12,
+        note: "Structurally higher growth becomes the new baseline",
+        factors: { rbiRate: 5.75, gdpGrowth: 8.0, globalSentiment: 3, fiiFlows: 25, monsoon: 2, govtPolicy: 3, rupeeDollar: 82 },
+      },
+    ],
   },
   {
     id: "neutral",
     name: "Baseline",
     emoji: "⚖️",
-    description: "Current market conditions — moderate growth, stable factors",
-    factors: {
-      rbiRate: 6.5,
-      gdpGrowth: 6.8,
-      globalSentiment: 1,
-      fiiFlows: 5,
-      monsoon: 1,
-      govtPolicy: 1,
-      rupeeDollar: 84,
-    },
+    description: "Current conditions, held flat — the control case for comparison",
+    keyframes: [
+      {
+        quarter: 1,
+        note: "Current market conditions, carried through unchanged",
+        factors: { rbiRate: 6.5, gdpGrowth: 6.8, globalSentiment: 1, fiiFlows: 5, monsoon: 1, govtPolicy: 1, rupeeDollar: 84 },
+      },
+      {
+        quarter: 12,
+        note: "No macro regime change over the horizon",
+        factors: { rbiRate: 6.5, gdpGrowth: 6.8, globalSentiment: 1, fiiFlows: 5, monsoon: 1, govtPolicy: 1, rupeeDollar: 84 },
+      },
+    ],
   },
-];
+].map((s) => ({
+  ...s,
+  // Quarter-1 values, so the sliders have something to show on selection.
+  factors: { ...s.keyframes[0].factors },
+}));
+
+// Round a factor value to its defined step so the sliders land on legal values.
+function snapToStep(def, value) {
+  if (!def) return value;
+  const snapped = Math.round(value / def.step) * def.step;
+  const clamped = Math.min(def.max, Math.max(def.min, snapped));
+  return Math.round(clamped * 100) / 100;
+}
+
+// Expand a scenario's keyframes into one factor object per quarter.
+export function buildFactorPath(scenario, quarters = 12) {
+  if (!scenario?.keyframes?.length) return null;
+
+  const frames = [...scenario.keyframes].sort((a, b) => a.quarter - b.quarter);
+  const path = [];
+
+  for (let q = 1; q <= quarters; q++) {
+    // Find the keyframe pair bracketing this quarter.
+    let prev = frames[0];
+    let next = frames[frames.length - 1];
+    for (let i = 0; i < frames.length; i++) {
+      if (frames[i].quarter <= q) prev = frames[i];
+      if (frames[i].quarter >= q) {
+        next = frames[i];
+        break;
+      }
+    }
+
+    const span = next.quarter - prev.quarter;
+    const t = span === 0 ? 0 : (q - prev.quarter) / span;
+
+    const factors = {};
+    for (const def of factorDefinitions) {
+      const a = prev.factors[def.id] ?? def.default;
+      const b = next.factors[def.id] ?? def.default;
+      factors[def.id] = snapToStep(def, a + (b - a) * t);
+    }
+
+    path.push(factors);
+  }
+
+  return path;
+}
+
+// The keyframe whose narrative note is in effect at a given quarter.
+export function activeKeyframe(scenario, quarter) {
+  if (!scenario?.keyframes?.length) return null;
+  const frames = [...scenario.keyframes].sort((a, b) => a.quarter - b.quarter);
+  return frames.reduce((acc, f) => (f.quarter <= quarter ? f : acc), frames[0]);
+}

@@ -11,8 +11,11 @@ import Portfolio from "../components/Portfolio";
 import SectorHeatmap from "../components/SectorHeatmap";
 import { useStocks } from "../hooks/useStocks";
 import { useAuth } from "../context/AuthContext";
-import { scenarios } from "../data/externalFactors";
-import { runSimulation } from "../engine/simulator";
+import { scenarios, buildFactorPath } from "../data/externalFactors";
+import { runSimulation, runMonteCarlo } from "../engine/simulator";
+
+const QUARTERS = 12;
+const MC_RUNS = 100;
 
 function getSectorInsight(stock) {
   const insights = {
@@ -33,20 +36,45 @@ function getSectorInsight(stock) {
 export default function Simulator() {
   const { user, loading: authLoading } = useAuth();
   const { stocks, loading: stocksLoading } = useStocks();
-  const [factors, setFactors] = useState({
-    ...scenarios.find((s) => s.id === "neutral").factors,
-  });
+  const defaultScenario = scenarios.find((s) => s.id === "neutral");
+  const [factors, setFactors] = useState({ ...defaultScenario.factors });
+  const [scenarioId, setScenarioId] = useState(defaultScenario.id);
+  const [mode, setMode] = useState("deterministic");
   const [results, setResults] = useState(null);
+  const [running, setRunning] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
   const [activeTab, setActiveTab] = useState("chart");
   const [authOpen, setAuthOpen] = useState(false);
 
   const loading = authLoading || stocksLoading;
+  const activeScenario = scenarios.find((s) => s.id === scenarioId) || null;
+
+  const applyScenario = useCallback((scenario) => {
+    setScenarioId(scenario.id);
+    setFactors({ ...scenario.factors });
+  }, []);
+
+  const clearScenario = useCallback(() => setScenarioId(null), []);
 
   const handleSimulate = useCallback(() => {
-    const simResults = runSimulation(stocks, factors, 12);
-    setResults(simResults);
-  }, [stocks, factors]);
+    // A scenario runs its scripted quarterly path; custom sliders run flat.
+    const input = activeScenario ? buildFactorPath(activeScenario, QUARTERS) : factors;
+
+    setRunning(true);
+    // Yield a frame so the button state paints before the 100-run sweep blocks.
+    requestAnimationFrame(() => {
+      const simResults =
+        mode === "monteCarlo"
+          ? runMonteCarlo(stocks, input, QUARTERS, {
+              runs: MC_RUNS,
+              lowerPct: 10,
+              upperPct: 90,
+            })
+          : runSimulation(stocks, input, QUARTERS);
+      setResults(simResults);
+      setRunning(false);
+    });
+  }, [stocks, factors, activeScenario, mode]);
 
   const handleSelectStock = (id) =>
     setSelectedStock((prev) => (prev === id ? null : id));
@@ -137,30 +165,64 @@ export default function Simulator() {
         <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
         {/* LEFT SIDEBAR */}
         <aside className="w-80 flex-shrink-0 flex flex-col border-r border-gray-800 overflow-hidden">
-          {/* Run button — always visible */}
+          {/* Run controls — always visible */}
           <div className="p-4 border-b border-gray-800 bg-gray-900">
+            {/* Mode switch */}
+            <div className="flex gap-1 mb-3 p-1 bg-gray-800 rounded-lg">
+              {[
+                { id: "deterministic", label: "Single Path", hint: "One deterministic run" },
+                { id: "monteCarlo", label: "Monte Carlo", hint: `${MC_RUNS} seeded runs` },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setMode(m.id)}
+                  title={m.hint}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    mode === m.id
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: running ? 1 : 1.02 }}
+              whileTap={{ scale: running ? 1 : 0.98 }}
               onClick={handleSimulate}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold rounded-lg transition-all shadow-lg shadow-blue-900/40 text-sm"
+              disabled={running}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 disabled:opacity-60 text-white font-semibold rounded-lg transition-all shadow-lg shadow-blue-900/40 text-sm"
             >
-              ▶ Run Simulation (12 Quarters)
+              {running
+                ? "Running…"
+                : mode === "monteCarlo"
+                ? `▶ Run ${MC_RUNS} Simulations (${QUARTERS} Quarters)`
+                : `▶ Run Simulation (${QUARTERS} Quarters)`}
             </motion.button>
-            {results && (
+            {results && !running && (
               <motion.p
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="text-center text-xs text-green-400 mt-2"
               >
-                Simulation complete — results updated
+                {mode === "monteCarlo"
+                  ? `${MC_RUNS} runs complete — P10–P90 bands updated`
+                  : "Simulation complete — results updated"}
               </motion.p>
             )}
           </div>
 
           {/* Scrollable factor controls */}
           <div className="flex-1 overflow-y-auto p-4">
-            <ExternalFactors factors={factors} setFactors={setFactors} />
+            <ExternalFactors
+              factors={factors}
+              setFactors={setFactors}
+              activeScenario={activeScenario}
+              onApplyScenario={applyScenario}
+              onClearScenario={clearScenario}
+            />
           </div>
         </aside>
 
@@ -301,9 +363,9 @@ export default function Simulator() {
                     <h3 className="text-white font-semibold mb-3">Getting Started</h3>
                     <div className="space-y-3 text-sm text-gray-400">
                       {[
-                        "Pick a scenario preset or adjust the factor sliders on the left",
-                        "Click \"Run Simulation\" at the top-left to project prices over 3 years",
-                        "Click any stock card to see detailed charts and sector sensitivity",
+                        "Pick a scripted scenario — each one plays a macro story out quarter by quarter",
+                        "Switch to Monte Carlo to run 100 seeded paths and see the P10–P90 fan",
+                        "Click any stock card to see its chart; click its score bar for the 5 pillars",
                         "Use the Portfolio tab to buy/sell stocks and track P&L",
                       ].map((step, i) => (
                         <div key={i} className="flex gap-2">
@@ -314,7 +376,9 @@ export default function Simulator() {
                     </div>
                     <div className="mt-4 p-3 bg-blue-900/20 rounded-lg border border-blue-800/30">
                       <p className="text-xs text-blue-300">
-                        Simulation combines fundamental scores with macro sensitivity to model realistic Indian equity price movements.
+                        Each quarter combines fundamental score, macro sensitivity and a valuation
+                        feedback term — P/E and PEG are re-derived from the simulated price, so a
+                        stock that outruns its earnings gets pulled back toward its anchor multiple.
                       </p>
                     </div>
                   </div>
