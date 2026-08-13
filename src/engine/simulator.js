@@ -111,14 +111,17 @@ export function initValuationState(stock) {
     pe: f.pe,
     peg: f.peg3Y,
     anchorPE: f.pe,
+    baseGrowth: f.salesYoY,
     growthAnnual: f.salesYoY,
   };
 }
 
 // Advance EPS one quarter and re-derive PE/PEG off the new price.
 function stepValuation(state, price, externalImpact) {
-  // Macro conditions tilt realized earnings growth around the trend rate.
-  const growthAnnual = state.growthAnnual + externalImpact * 0.04;
+  // Macro conditions tilt realized earnings growth around the trend rate. The
+  // tilt is a fixed offset from the immutable trend — applying it to the
+  // previous quarter's already-tilted value would ratchet growth every quarter.
+  const growthAnnual = state.baseGrowth + externalImpact * 0.04;
   const growthQuarterly = Math.pow(1 + Math.max(growthAnnual, -0.5), 0.25) - 1;
   const eps = Math.max(state.eps * (1 + growthQuarterly), 0.01);
 
